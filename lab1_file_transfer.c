@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 
 int portno;   //use port number
+struct hostent *server; //store server ip
 
 void error(const char *msg){
     perror(msg);
@@ -21,13 +22,19 @@ void tcp_s(){
     int n;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);  //build socket for tcp
-    if (sockfd < 0)
+    if (sockfd < 0) //check socket whether open successfully
         error("ERROR opening socket");
 
     bzero((char *) &serv_addr, sizeof(serv_addr)); //set serv_addr to zero
+
+    serv_addr.sin_family = AF_INET; //transfer to internet
+    serv_addr.sin_addr.s_addr = INADDR_ANY; //set ip of s_addr as 0.0.0.0
+    serv_addr.sin_port = htons(portno);  //use portno as port number
+    
     if (bind(sockfd, (struct sockaddr *) &serv_addr, 
                 sizeof(serv_addr)) <0)
         error("ERROR on binding");
+
     listen(sockfd, 5);
     clilen = sizeof(cli_addr);
     newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
@@ -35,15 +42,62 @@ void tcp_s(){
     if (newsockfd < 0)
         error("ERROR on accept");
 
-    bzero((char *) &serv_addr, sizeof(serv_addr));
+    bzero(buffer, 256);
     
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = INADDR_ANY;
-    serv_addr.sin_port = htons(portno);
+    n = read(newsockfd, buffer, 255);
+    
+    if (n < 0) error("ERROR reading from socket");
+
+    printf("Here is the message: %s\n", buffer);
+    n = write(newsockfd, "I got your message", 18);
+
+    if (n < 0) error("ERROR writing to socket");
+
+    close(newsockfd);
+    close(sockfd);
+    
+    
+    return;
 
 }
 
 void tcp_c(){
+    int sockfd, n;
+    struct sockaddr_in serv_addr;
+
+    char buffer[256];
+    if (argc < 3) {
+       fprintf(stderr,"usage %s hostname port\n", argv[0]);
+       exit(0);
+    }
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0) 
+        error("ERROR opening socket");
+
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, 
+         (char *)&serv_addr.sin_addr.s_addr,
+         server->h_length);
+    serv_addr.sin_port = htons(portno);
+    
+    if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
+        error("ERROR connecting");
+    
+    printf("Please enter the message: ");
+    bzero(buffer,256);
+    fgets(buffer,255,stdin);
+    n = write(sockfd,buffer,strlen(buffer));
+    if (n < 0) 
+         error("ERROR writing to socket");
+    bzero(buffer,256);
+    n = read(sockfd,buffer,255);
+    if (n < 0) 
+         error("ERROR reading from socket");
+    printf("%s\n",buffer);
+    close(sockfd);
+    return 0;
 
 }
 
@@ -56,7 +110,7 @@ void udp_c(){
 }
 
 int main(int argc, char *argv[]){
-    if (argc < 4) {
+    if (argc < 5) {
         fprintf(stderr, "ERROR, lose arguments");
         exit(1);
     } else if (strcmp(argv[1], "tcp") != 0 && strcmp(argv[1], "udp") != 0) {  //check second argument whether is tcp or udp
@@ -72,8 +126,13 @@ int main(int argc, char *argv[]){
         exit(1);
     }
 
-    portno = atoi(argv[3]);
+    portno = atoi(argv[4]);
 
+    server = gethostbyname(argv[3]);
+    if (server == NULL) {
+        fprintf(stderr,"ERROR, no such host\n");
+        exit(0);
+    }
     
     if (strcmp(argv[1], "tcp") == 0){
         if (strcmp(argv[2], "send") == 0){        //as TCP client
