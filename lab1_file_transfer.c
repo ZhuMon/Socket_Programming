@@ -125,9 +125,15 @@ int main(int argc, char *argv[]){
         exit(1);
     }
 
-    if (strcmp(argv[2], "send") == 0 && argc < 5){ //check fifth argument whether exist
+    if (strcmp(argv[2], "send") == 0 && argc < 6){ //check sixth argument whether exist
         fprintf(stderr, "ERROR, please input a file name in fifth argument");
         exit(1);
+    } else if (strcmp(argv[2], "send") == 0) {
+        file = fopen(argv[5], "r");
+        if (file == NULL ){
+            fprintf(stderr, "ERROR, open file failure" );
+            exit(0);
+        }
     }
 
 
@@ -139,12 +145,6 @@ int main(int argc, char *argv[]){
 
     portno = atoi(argv[4]);
     
-    file = fopen(argv[5], "r");
-
-    if ( file == NULL ){
-        fprintf(stderr, "ERROR, open file failure" );
-        exit(0);
-    }
 
     if (strcmp(argv[1], "tcp") == 0){
         if (strcmp(argv[2], "send") == 0){        //as TCP client
