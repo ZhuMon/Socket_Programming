@@ -2,9 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/type.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netdb.h>
 
 int portno;   //use port number
 struct hostent *server; //store server ip
@@ -66,10 +67,6 @@ void tcp_c(){
     struct sockaddr_in serv_addr;
 
     char buffer[256];
-    if (argc < 3) {
-       fprintf(stderr,"usage %s hostname port\n", argv[0]);
-       exit(0);
-    }
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd < 0) 
@@ -97,7 +94,7 @@ void tcp_c(){
          error("ERROR reading from socket");
     printf("%s\n",buffer);
     close(sockfd);
-    return 0;
+    return;
 
 }
 
