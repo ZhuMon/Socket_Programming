@@ -9,6 +9,10 @@
 
 int portno;   //use port number
 struct hostent *server; //store server ip
+FILE *file;   //the file want to transfer
+
+
+
 
 void error(const char *msg){
     perror(msg);
@@ -30,7 +34,7 @@ void tcp_s(){
 
     serv_addr.sin_family = AF_INET; //transfer to internet
     serv_addr.sin_addr.s_addr = INADDR_ANY; //set ip of s_addr as 0.0.0.0
-    serv_addr.sin_port = htons(portno);  //use portno as port number
+    serv_addr.sin_port = htons(portno);  //use portno as port number & make endian same
     
     if (bind(sockfd, (struct sockaddr *) &serv_addr, 
                 sizeof(serv_addr)) <0)
@@ -50,7 +54,7 @@ void tcp_s(){
     if (n < 0) error("ERROR reading from socket");
 
     printf("Here is the message: %s\n", buffer);
-    n = write(newsockfd, "I got your message", 18);
+    n = write(newsockfd, "server : I got your message", 18);
 
     if (n < 0) error("ERROR writing to socket");
 
@@ -83,8 +87,11 @@ void tcp_c(){
         error("ERROR connecting");
     
     printf("Please enter the message: ");
-    bzero(buffer,256);
-    fgets(buffer,255,stdin);
+    
+
+    bzero(buffer, 256);
+    fread(buffer, 255, 1, file);
+
     n = write(sockfd,buffer,strlen(buffer));
     if (n < 0) 
          error("ERROR writing to socket");
@@ -123,14 +130,22 @@ int main(int argc, char *argv[]){
         exit(1);
     }
 
-    portno = atoi(argv[4]);
 
     server = gethostbyname(argv[3]);
     if (server == NULL) {
         fprintf(stderr,"ERROR, no such host\n");
         exit(0);
     }
+
+    portno = atoi(argv[4]);
     
+    file = fopen(argv[5], "r");
+
+    if ( file == NULL ){
+        fprintf(stderr, "ERROR, open file failure" );
+        exit(0);
+    }
+
     if (strcmp(argv[1], "tcp") == 0){
         if (strcmp(argv[2], "send") == 0){        //as TCP client
             tcp_c();
