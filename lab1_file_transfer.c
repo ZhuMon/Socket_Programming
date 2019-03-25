@@ -34,7 +34,7 @@ void tcp_s(){
     bzero((char *) &serv_addr, sizeof(serv_addr)); //set serv_addr to zero
 
     serv_addr.sin_family = AF_INET; //transfer to internet
-    serv_addr.sin_addr.s_addr = INADDR_ANY; //set ip of s_addr as 0.0.0.0
+    serv_addr.sin_addr.s_addr = INADDR_ANY; //允許任何IP連接server 
     serv_addr.sin_port = htons(portno);  //use portno as port number & make endian same
     
     if (bind(sockfd, (struct sockaddr *) &serv_addr, 
@@ -72,7 +72,7 @@ void tcp_s(){
 
     printf("File name: %s\n", file_name);
     FILE *outfile;
-    outfile = fopen(file_name, "ab");
+    outfile = fopen(file_name, "wb");
     
     ////parse second line in buffer
     char file_size_c[256]; //store the file_size in character
