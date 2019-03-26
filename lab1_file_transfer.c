@@ -22,7 +22,7 @@ struct tm *p;               //record time in year, month ...
 void print_time(int percent){
     gettimeofday(&my_t, NULL); //get sec & usec from 1970/1/1 0:00:00
     p = localtime(&my_t.tv_sec); //turn second to year, month, day, ...
-    printf("%3d%% %02d/%02d/%02d %02d:%02d:%02d.%06d\n", percent, (1900+p->tm_year), (1+p->tm_mon), p->tm_mday, p->tm_hour, p->tm_min, p->tm_sec, my_t.tv_usec);
+    printf("%3d%% %02d/%02d/%02d %02d:%02d:%02d.%06ld\n", percent, (1900+p->tm_year), (1+p->tm_mon), p->tm_mday, p->tm_hour, p->tm_min, p->tm_sec, my_t.tv_usec);
 
 }
 
@@ -251,7 +251,7 @@ void tcp_c(){
     strcat(f_buffer, "\n");   
 
     char file_size_c[256];  //store file_size in character
-    sprintf(file_size_c, "%lld", f_state.st_size);  //change file size from int to char
+    sprintf(file_size_c, "%ld", f_state.st_size);  //change file size from int to char
     strcat(f_buffer, file_size_c); //store file size in second line
     strcat(f_buffer, "\n");
 
@@ -697,7 +697,7 @@ void udp_c(){
     strcat(f_buffer, "\n");   
 
     char file_size_c[256];  //store file_size in character
-    sprintf(file_size_c, "%lld", f_state.st_size);  //change file size from int to char
+    sprintf(file_size_c, "%ld", f_state.st_size);  //change file size from int to char
     strcat(f_buffer, file_size_c); //store file size in second line
     strcat(f_buffer, "\n");
 
