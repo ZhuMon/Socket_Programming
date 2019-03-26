@@ -512,7 +512,6 @@ void udp_s(){
             //bzero(p_buffer, p_size);
 
             if(i == fp_num-1){
-                //n = read(newsockfd, p_buffer, file_size_i % p_size);
                 while(1){
                     bzero(p_buffer, file_size_i % p_size);
                     peerlen = sizeof(peeraddr);
@@ -531,7 +530,6 @@ void udp_s(){
                 fwrite(p_buffer, 1, file_size_i % p_size, outfile);
                 print_time(100); //print 100%
             } else {
-                //n = read(newsockfd, p_buffer, p_size);
                 while(1){
                     bzero(p_buffer, p_size);
                     peerlen = sizeof(peeraddr);
@@ -541,7 +539,7 @@ void udp_s(){
                             continue;
                         error("recvfrom error");
                     } else if (n > 0){
-                        sendto(sock, buffer, n, 0,
+                        sendto(sock, p_buffer, n, 0,
                                (struct sockaddr *)&peeraddr, peerlen);
                     }
                     break;
@@ -577,12 +575,10 @@ void udp_s(){
 
          //每個i代表1個team
         for(int i = 0; i < fp_num; i++){
-            bzero(p_buffer, 256);
 
             if(i == fp_num -1 && file_size_i % 20 != 0){ //the last team whose packets different than others
                 for(int j = 0; j < tp_num_l; j++){
                     if(j == tp_num_l -1){
-                        //n = read(newsockfd, p_buffer, file_size_i%fp_size%256);
                         while(1){
                             bzero(p_buffer, file_size_i % fp_size % 256);
                             peerlen = sizeof(peeraddr);
@@ -592,7 +588,7 @@ void udp_s(){
                                     continue;
                                 error("recvfrom error");
                             } else if (n > 0){
-                                sendto(sock, buffer, n, 0,
+                                sendto(sock, p_buffer, n, 0,
                                        (struct sockaddr *)&peeraddr, peerlen);
                             }
                             break;
@@ -600,7 +596,6 @@ void udp_s(){
                         fwrite(p_buffer, 1, file_size_i%fp_size%256, outfile);
                         print_time(100);
                      } else {
-                        //n = read(newsockfd, p_buffer,256);
                         while(1){
                             bzero(p_buffer, 256);
                             peerlen = sizeof(peeraddr);
@@ -610,7 +605,7 @@ void udp_s(){
                                     continue;
                                 error("recvfrom error");
                             } else if (n > 0){
-                                sendto(sock, buffer, n, 0,
+                                sendto(sock, p_buffer, n, 0,
                                        (struct sockaddr *)&peeraddr, peerlen);
                             }
                             break;
@@ -667,8 +662,21 @@ void udp_s(){
 
     fclose(outfile);
 
-    sendto(sock, "完成", 6, 0,
+    char r_buffer[256]; //receive buffer
+    bzero(buffer, 256);
+    bzero(r_buffer, 256);
+    strcat(buffer, "完成");
+
+    while(strcmp(buffer, r_buffer) != 0){
+        sendto(sock, buffer, 6, 0,
            (struct sockaddr *)&peeraddr, peerlen);
+        n = recvfrom(sock, r_buffer, 6, 0, NULL, NULL);
+        if(n == -1){
+            if(errno == EINTR)
+                continue;
+            error("ERROR, recvfrom() error");
+        }
+    }
 
     close(sock);
 }
