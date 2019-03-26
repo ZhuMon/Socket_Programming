@@ -6,16 +6,17 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <time.h>
 #include <netinet/in.h>
 #include <netdb.h>
 
-int portno;   //use port number
-char *file_name; //store file name
-struct hostent *server; //store server ip
-FILE *file;   //the file want to transfer
-struct stat f_state; //store state of the file
-struct timeval my_t; //record arrival time in usec & sec
-struct tm *p; //record time in year, month ...
+int portno;                 //use port number
+struct hostent *server;     //store server ip
+FILE *file;                 //the file want to transfer
+char *file_name;            //store file name
+struct stat f_state;        //store state of the file
+struct timeval my_t;        //record arrival time in usec & sec
+struct tm *p;               //record time in year, month ...
 
 void print_time(int percent){
     gettimeofday(&my_t, NULL); //get sec & usec from 1970/1/1 0:00:00
@@ -131,28 +132,6 @@ void tcp_s(){
         fp_num = 20;
     }
 
-    /*
-    ////parse third line in buffer
-    char p_num_c[256]; //store packet number in character
-    int p_num_i; //store packet number in integer
-    
-    for(int i = 0; i < 256; i++){  //let third line of buffer store in p_num_c
-        if(buffer[i+line_pointer+1] == '\n'){
-            line_pointer = i+line_pointer+1;
-            break;
-        }
-        p_num_c[i] = buffer[i+line_pointer+1];
-    }
-
-    if(line_pointer == 0){
-        error("ERROR, first packet format eroor");
-    }
-
-    p_num_i = atoi(p_num_c);
-
-    printf("packet number: %d\n", p_num_i);
-    */
-
     if(p_size == fp_size){    // if 5% file <= 256 bytes (only 20 or 21 packets)
         for(int i = 0; i < fp_num; i++){
             bzero(p_buffer, p_size);
@@ -232,7 +211,7 @@ void tcp_s(){
     fclose(outfile);
 
     //printf("Here is the message: \n%s\n", buffer);
-    n = write(newsockfd, "Finish transfer", 15);
+    n = write(newsockfd, "完成", 6);
 
     if (n < 0) error("ERROR writing to socket");
 
@@ -263,23 +242,28 @@ void tcp_c(){
     if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
         error("ERROR connecting");
     
-    //pass a packet which store file name, file size, and # of packets 
+    //pass a packet which store file name, and file size 
     char f_buffer[256]; //first buffer
     bzero(f_buffer, 256);
     strcat(f_buffer, file_name); //store file name in first line
-
     strcat(f_buffer, "\n");   
 
-    char file_size_c[256];
+    char file_size_c[256];  //store file_size in character
     sprintf(file_size_c, "%lld", f_state.st_size);  //change file size from int to char
     strcat(f_buffer, file_size_c); //store file size in second line
     strcat(f_buffer, "\n");
 
+    n = write(sockfd, f_buffer, 256);
+    if (n < 0) 
+         error("ERROR writing to socket. (first packet)");
     
-    int fp_size = f_state.st_size/20.0 + 0.5; //5% of packets size is file size/20 四捨五入
+    //calculate size of packets
+    // 一個packet team 的大小 = 5%的file大小四捨五入
+    int fp_size = f_state.st_size/20.0 + 0.5; 
     int p_size; //packet size;
     
-    //if 5% file >= 256 bytes, after transfer, file will crash. So, let size of packet limited to 256 bytes
+    // if 5% file >= 256 bytes, after transfer, file will crash.
+    // So, let size of packet limited to 256 bytes
     if(fp_size >= 256){  
         p_size = 256;
     } else {
@@ -310,18 +294,6 @@ void tcp_c(){
         fp_num = 20;
     }
 
-    /*
-    char p_num[256]; //5% of the number of packet that the file will spilt into 
-    sprintf(p_num, "%lld", f_state.st_size/p_num +1); //change packet number from int to char
-    strcat(f_buffer, p_num);
-    printf("f_buffer: %s\n", f_buffer);
-    strcat(f_buffer, "\n");
-    */
-
-    n = write(sockfd, f_buffer, 256);
-    if (n < 0) 
-         error("ERROR writing to socket. (first packet)");
-
     //read file
     char buffer[f_state.st_size+1]; //make buffer equal to size of file
     bzero(buffer, f_state.st_size+1); //clean buffer
@@ -333,7 +305,6 @@ void tcp_c(){
     if(p_size == fp_size){    // if 5% file <= 256 bytes (only 20 or 21 packets)
         for(int i = 0; i < fp_num ; i++){
             bzero(p_buffer, p_size);  
-
             if(i == fp_num-1){ //the last packet
                 //若20個packet可以平分file，最後一個packet還是使用 p_size
                 if(fp_size == f_state.st_size/20){ 
@@ -343,23 +314,20 @@ void tcp_c(){
                     n = write(sockfd,p_buffer,p_size);
                     break;
                 } 
-
                 //最後一個packet 不會是滿的，所以j只到f_state.st_size%p_size
                 for(int j = 0; j < f_state.st_size%p_size; j++){
                     p_buffer[j] = buffer[i*p_size+j];
                 }
                 n = write(sockfd,p_buffer, f_state.st_size%p_size);
             } else { 
-                //spilt file into 19 or 20 packets
-                //and transfer them
+                //spilt file into 19 or 20 packets and transfer them
                 for(int j = 0; j < p_size; j++){  
                     p_buffer[j] = buffer[i*p_size+j];
                 }
                 n = write(sockfd,p_buffer,p_size);
             }
 
-            if (n < 0) 
-                 error("ERROR writing to socket. (file packet)");
+            if (n < 0) error("ERROR writing to socket. (file packet)");
         }
     } else { //each packet team has more than 1 packet
         int tp_num; // X packets/team. Record packet num of each team (except the last) 
@@ -374,7 +342,8 @@ void tcp_c(){
         }
 
         //最後一個team的packet 個數
-        if(f_state.st_size % 20 == 0){ //若20個team可以平分file，最後一個team的packet個數就會與其他的一樣
+        if(f_state.st_size % 20 == 0){ 
+            //若20個team可以平分file，最後一個team的packet個數就會與其他的一樣
             tp_num_l = tp_num;
         }else{
             if(f_state.st_size % fp_size % 256 != 0){
@@ -388,7 +357,8 @@ void tcp_c(){
         for(int i = 0; i < fp_num; i++){
             bzero(p_buffer, 256);
 
-            if(i == fp_num -1 && f_state.st_size % 20 != 0){ //the last team whose packets different than others
+            if(i == fp_num -1 && f_state.st_size % 20 != 0){ 
+                //the last team whose packets different than others
                  for(int j = 0; j < tp_num_l; j++){
                      if(j == tp_num_l -1){
                          for(int k = 0; k < f_state.st_size%fp_size%256; k++){
@@ -422,20 +392,14 @@ void tcp_c(){
             }
         }
     }
-    /*
-    n = write(sockfd,buffer,strlen(buffer));
-
-    if (n < 0) 
-         error("ERROR writing to socket");
-    */
+    
     bzero(f_buffer,256);
-    n = read(sockfd,f_buffer,15);
+    n = read(sockfd,f_buffer,6);
     if (n < 0) 
          error("ERROR reading from socket");
     printf("%s\n",f_buffer);
     close(sockfd);
     return;
-
 }
 
 void udp_s(){
@@ -467,19 +431,19 @@ int main(int argc, char *argv[]){
             fprintf(stderr, "ERROR, open file failure" );
             exit(0);
         }
-        stat(argv[5], &f_state);
-        file_name = argv[5];
+        stat(argv[5], &f_state); // store state of file, argv[5], in f_state
+        file_name = argv[5];     // store file name in global variable
 
     }
 
 
-    server = gethostbyname(argv[3]);
+    server = gethostbyname(argv[3]); //turn ip to host name and store in global variable "server" 
     if (server == NULL) {
         fprintf(stderr,"ERROR, no such host\n");
         exit(0);
     }
 
-    portno = atoi(argv[4]);
+    portno = atoi(argv[4]); //store port num(argv[4]) in portno
     
 
     if (strcmp(argv[1], "tcp") == 0){
