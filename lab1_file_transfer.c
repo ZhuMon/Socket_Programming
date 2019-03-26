@@ -13,7 +13,7 @@
 int portno;                 //use port number
 struct hostent *server;     //store server ip
 FILE *file;                 //the file want to transfer
-char *file_name;            //store file name
+char file_name[256];            //store file name
 struct stat f_state;        //store state of the file
 struct timeval my_t;        //record arrival time in usec & sec
 struct tm *p;               //record time in year, month ...
@@ -432,7 +432,8 @@ int main(int argc, char *argv[]){
             exit(0);
         }
         stat(argv[5], &f_state); // store state of file, argv[5], in f_state
-        file_name = argv[5];     // store file name in global variable
+        bzero(file_name, 256);
+        strcat(file_name, argv[5]); // store file name in global variable
 
     }
 
