@@ -973,9 +973,9 @@ int main(int argc, char *argv[]){
         }
     } else if (strcmp(argv[1], "udp") == 0){     
         if (strcmp(argv[2], "send") == 0){        //as UDP client
-            tcp_c();
+            udp_c();
         } else if(strcmp(argv[2], "recv") == 0){  //as UDP server
-            tcp_s();
+            udp_s();
         }
     }
 
