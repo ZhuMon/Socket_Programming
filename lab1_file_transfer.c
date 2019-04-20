@@ -512,16 +512,37 @@ void udp_s(){
             //bzero(p_buffer, p_size);
 
             if(i == fp_num-1){
+                //若20個packet可以平分file，最後一個packet還是使用 p_size
+                if(fp_size == file_size_i/20){ 
+                    while(1){
+                        bzero(p_buffer, p_size);
+                        peerlen = sizeof(peeraddr);
+                        n = recvfrom(sock, p_buffer, p_size, 0, (struct sockaddr *)&peeraddr, &peerlen);
+                        if(n == -1){
+                            if(errno == EINTR)
+                                continue;
+                            error("recvfrom error");
+                        } else if (n > 0){
+                            sendto(sock, p_buffer, p_size, 0,
+                                   (struct sockaddr *)&peeraddr, peerlen);
+                        }
+                        break;
+                    }
+                    fwrite(p_buffer, 1, p_size, outfile);
+                    print_time(100); //print 100%
+                    break;
+                }
                 while(1){
-                    bzero(p_buffer, file_size_i % p_size);
+                    bzero(p_buffer, p_size);
                     peerlen = sizeof(peeraddr);
                     n = recvfrom(sock, p_buffer, file_size_i % p_size, 0, (struct sockaddr *)&peeraddr, &peerlen);
+                    //printf("last recv: %s\n", p_buffer);
                     if(n == -1){
                         if(errno == EINTR)
                             continue;
                         error("recvfrom error");
                     } else if (n > 0){
-                        sendto(sock, p_buffer, n, 0,
+                        sendto(sock, p_buffer, file_size_i % p_size, 0,
                                (struct sockaddr *)&peeraddr, peerlen);
                     }
                     break;
@@ -539,7 +560,7 @@ void udp_s(){
                             continue;
                         error("recvfrom error");
                     } else if (n > 0){
-                        sendto(sock, p_buffer, n, 0,
+                        sendto(sock, p_buffer, p_size, 0,
                                (struct sockaddr *)&peeraddr, peerlen);
                     }
                     break;
@@ -588,7 +609,7 @@ void udp_s(){
                                     continue;
                                 error("recvfrom error");
                             } else if (n > 0){
-                                sendto(sock, p_buffer, n, 0,
+                                sendto(sock, p_buffer, file_size_i % fp_size % 256, 0,
                                        (struct sockaddr *)&peeraddr, peerlen);
                             }
                             break;
@@ -605,7 +626,7 @@ void udp_s(){
                                     continue;
                                 error("recvfrom error");
                             } else if (n > 0){
-                                sendto(sock, p_buffer, n, 0,
+                                sendto(sock, p_buffer, 256, 0,
                                        (struct sockaddr *)&peeraddr, peerlen);
                             }
                             break;
@@ -627,7 +648,7 @@ void udp_s(){
                                     continue;
                                 error("recvfrom error");
                             } else if (n > 0){
-                                sendto(sock, buffer, n, 0,
+                                sendto(sock, p_buffer, fp_size % 256, 0,
                                        (struct sockaddr *)&peeraddr, peerlen);
                             }
                             break;
@@ -647,7 +668,7 @@ void udp_s(){
                                     continue;
                                 error("recvfrom error");
                             } else if (n > 0){
-                                sendto(sock, buffer, n, 0,
+                                sendto(sock, p_buffer, 256, 0,
                                        (struct sockaddr *)&peeraddr, peerlen);
                             }
                             break;
@@ -675,7 +696,11 @@ void udp_s(){
             if(errno == EINTR)
                 continue;
             error("ERROR, recvfrom() error");
+        } else if (n > 0){
+            //printf("%s\n", r_buffer);
+            break;
         }
+        //printf("try...\n");
     }
 
     close(sock);
@@ -772,9 +797,11 @@ void udp_c(){
             if(i == fp_num-1){ //the last packet
                 //若20個packet可以平分file，最後一個packet還是使用 p_size
                 if(fp_size == f_state.st_size/20){ 
+                    //printf("yes\n");
                     for(int j = 0; j < p_size; j++){  
                         p_buffer[j] = buffer[i*p_size+j];
                     }
+                    //printf("p_buffer: %s\n", p_buffer);
                     while(strcmp(p_buffer, r_buffer) != 0){
                         sendto(sock, p_buffer, p_size, 0, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
                         ret = recvfrom(sock, r_buffer, p_size, 0, NULL, NULL);
@@ -811,7 +838,10 @@ void udp_c(){
                         if(errno == EINTR)
                             continue;
                         error("ERROR, recvfrom() error");
+                    } else if(ret > 0){
+                        //printf("%s\n", r_buffer);
                     }
+                    //printf("out: %s\n", r_buffer);
                 }
             }
 
@@ -841,6 +871,7 @@ void udp_c(){
             }
         }
 
+
         //每個i代表1個team
         for(int i = 0; i < fp_num; i++){
             if(i == fp_num -1 && f_state.st_size % 20 != 0){
@@ -859,6 +890,8 @@ void udp_c(){
                                 if(errno == EINTR)
                                     continue;
                                 error("ERROR, recvfrom() error");
+                            } else if(ret > 0 && strcmp(p_buffer, r_buffer) == 0){
+                                break;
                             }
                         }
 
@@ -873,6 +906,8 @@ void udp_c(){
                                 if(errno == EINTR)
                                     continue;
                                 error("ERROR, recvfrom() error");
+                            } else if(ret > 0 && strcmp(p_buffer, r_buffer) == 0){
+                                break;
                             }
                         }
                         
@@ -883,6 +918,7 @@ void udp_c(){
                 for(int j = 0; j < tp_num; j++){
                     bzero(p_buffer, 256);
                     bzero(r_buffer, 256);
+                    //printf("r_buffer:\n%s\n", r_buffer);
                     if(j == tp_num - 1){  //the last packet
                         for(int k = 0; k < fp_size%256;k++){
                             p_buffer[k] = buffer[i*fp_size + j*256 + k];
@@ -894,6 +930,8 @@ void udp_c(){
                                 if(errno == EINTR)
                                     continue;
                                 error("ERROR, recvfrom() error");
+                            } else if(ret > 0 && strcmp(p_buffer, r_buffer) == 0){
+                                break;
                             }
                         }
                         //n = write(sockfd, p_buffer, fp_size%256);
@@ -902,6 +940,7 @@ void udp_c(){
                         for(int k = 0; k < 256; k++){
                             p_buffer[k] = buffer[i*fp_size+j*256+k];
                         }
+                        int tmp = 0;
                         while(strcmp(p_buffer, r_buffer) != 0){
                             sendto(sock, p_buffer, 256, 0, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
                             ret = recvfrom(sock, r_buffer, 256, 0, NULL, NULL);
@@ -909,7 +948,16 @@ void udp_c(){
                                 if(errno == EINTR)
                                     continue;
                                 error("ERROR, recvfrom() error");
+                            } else if(ret > 0 && strcmp(p_buffer, r_buffer) == 0){
+                                break;
                             }
+                            //printf("p_buffer:\n%s\n", p_buffer);
+                            printf("r_buffer:\n%s\n", r_buffer);
+                            //tmp++;
+                            //if(tmp>1){
+                                //printf("%d\n", sizeof(r_buffer));
+                              //  break;
+                            //}
                         }
                     }
                 }
@@ -920,6 +968,7 @@ void udp_c(){
     
     bzero(f_buffer, 256);
     while(1){
+        //printf("In last while\n");
         bzero(f_buffer, 256);
         ret = recvfrom(sock, f_buffer, 256, 0, NULL, NULL);
         if(ret == -1){
